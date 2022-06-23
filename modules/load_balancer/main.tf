@@ -1,12 +1,12 @@
 # Create webserver load balancer
 resource "azurerm_lb" "web_server_lb" {
-   name                = "web-server-lb"
+   name                = "web-server-lb-${terraform.workspace}"
    location            = var.resource_group_location
    resource_group_name = var.resource_group_name
    sku                 = "Standard"
 
    frontend_ip_configuration {
-     name                 = "lb-public-ip-conf"
+     name                 = "lb-public-ip-conf-${terraform.workspace}"
      public_ip_address_id = var.lb_public_ip_id
    }
  }
@@ -14,7 +14,7 @@ resource "azurerm_lb" "web_server_lb" {
 # Create webserver load balancer address pool
 resource "azurerm_lb_backend_address_pool" "webserver_lb_pool" {
    loadbalancer_id     = azurerm_lb.web_server_lb.id
-   name                = "webserver-lb-pool"
+   name                = "webserver-lb-pool-${terraform.workspace}"
  }
 
 # Add load balancer rule
@@ -45,7 +45,7 @@ resource "azurerm_lb_nat_rule" "web_srv_lb_nat_roles" {
 resource "azurerm_network_interface_backend_address_pool_association" "network_pool_association" {
   count                   = var.vm_count
   backend_address_pool_id = azurerm_lb_backend_address_pool.webserver_lb_pool.id
-  ip_configuration_name   = "web-server${count.index+1}-nic-conf"
+  ip_configuration_name   = "web-server${count.index+1}-nic-conf-${terraform.workspace}"
   network_interface_id    = var.web_server_nic_id[count.index]
 }
 
@@ -60,7 +60,7 @@ resource "azurerm_network_interface_nat_rule_association" "nat_rule_association"
 resource "azurerm_lb_probe" "lb_probe" {
   resource_group_name            = var.resource_group_name
   loadbalancer_id = azurerm_lb.web_server_lb.id
-  name            = "web-server-lb-probe"
+  name            = "web-server-lb-probe-${terraform.workspace}"
   port            = 8080
   protocol        = "HTTP"
   request_path    = "/"

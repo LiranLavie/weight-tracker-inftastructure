@@ -11,7 +11,7 @@ variable "resource_group_location" {
 }
 
 variable "server_count" {
-  default     = 3
+  default     = 1
   type        = number
   description = "How many Servers to create."
 }
@@ -33,8 +33,27 @@ variable "my_ip" {
   type        = string
   description = "my ip address to allow for ssh firewall rule,set in variables.tfvars for security reasons."
 }
-
-variable "storage_account_key" {
-  type        = string
-  description = "key is stored in variables.tfvars for security reasons."
+variable "vnet_address_space" {
+  description = "Address space for a vnet"
 }
+
+variable "private_subnet_prefix" {
+  description = "Set a prefix for private subnet"
+}
+variable "public_subnet_prefix" {
+  description = "Set a prefix for public subnet"
+}
+
+variable "postgres_firewall_rule_start_ip" {
+  description = "The start ip address when allowing access to postgres through postgres firewall"
+}
+
+variable "postgres_firewall_rule_end_ip" {
+  description = "The end ip address when allowing access to postgres through postgres firewall"
+}
+
+##Used when storing state remotely
+#variable "storage_account_key" {
+#  type        = string
+#  description = "key is stored in variables.tfvars for security reasons."
+#}

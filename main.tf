@@ -1,31 +1,31 @@
 # Create resource group
 resource "azurerm_resource_group" "rg" {
-  name     = var.resource_group_name
+  name     = "${var.resource_group_name}-${terraform.workspace}"
   location = var.resource_group_location
 }
 
 # Create virtual network
 resource "azurerm_virtual_network" "vnet" {
   name                = "vnet"
-  address_space       = ["192.168.0.0/16"]
+  address_space       = [var.vnet_address_space]
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
 }
 
 # Create public subnet
 resource "azurerm_subnet" "public_subnet" {
-  name                 = "public-subnet"
+  name                 = "public-subnet-${terraform.workspace}"
   resource_group_name  = azurerm_resource_group.rg.name
   virtual_network_name = azurerm_virtual_network.vnet.name
-  address_prefixes     = ["192.168.1.0/24"]
+  address_prefixes     = [var.public_subnet_prefix]
 }
 
 # Create private subnet
 resource "azurerm_subnet" "private_subnet" {
-  name                 = "private-subnet"
+  name                 = "private-subnet-${terraform.workspace}"
   resource_group_name  = azurerm_resource_group.rg.name
   virtual_network_name = azurerm_virtual_network.vnet.name
-  address_prefixes     = ["192.168.2.0/24"]
+  address_prefixes     = [var.private_subnet_prefix]
   delegation{
      name = "postgreSQL-delegate"
      service_delegation {name = "Microsoft.DBforPostgreSQL/flexibleServers"}
@@ -36,7 +36,7 @@ resource "azurerm_subnet" "private_subnet" {
 module "servers_cluster" {
   source                  = "./modules/web_server"
   vm_count                = var.server_count
-  availability_set_name   = "web_server_avset"
+  availability_set_name   = "web_server_avset-${terraform.workspace}"
   resource_group_location = azurerm_resource_group.rg.location
   resource_group_name     = azurerm_resource_group.rg.name
   server_name             = "web-server"
@@ -47,7 +47,7 @@ module "servers_cluster" {
   depends_on = [azurerm_resource_group.rg,azurerm_subnet.public_subnet,azurerm_public_ip.web_srv_lb_ip]
 }
 
-#init load balancer module
+#Init load balancer module
 module "server_load_balancer" {
   source         = "./modules/load_balancer"
   vm_count = var.server_count
@@ -59,9 +59,22 @@ module "server_load_balancer" {
   depends_on = [module.servers_cluster,azurerm_resource_group.rg,azurerm_public_ip.web_srv_lb_ip]
 }
 
+#Init postgres module
+module "postgres_server" {
+  source = "./modules/postgres_db"
+  firewall_rule_end_ip = var.postgres_firewall_rule_end_ip
+  firewall_rule_start_ip = var.postgres_firewall_rule_start_ip
+  postgres_password = var.postgres_password
+  postgres_username = var.postgres_username
+  private_subnet_id = azurerm_subnet.private_subnet.id
+  resource_group_location = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+  vnet_id = azurerm_virtual_network.vnet.id
+}
+
  # Create public ip for load balancer
 resource "azurerm_public_ip" "web_srv_lb_ip" {
-   name                         = "lb-public-ip"
+   name                         = "lb-public-ip-${terraform.workspace}"
    location                     = azurerm_resource_group.rg.location
    resource_group_name          = azurerm_resource_group.rg.name
    allocation_method            = "Static"
@@ -72,7 +85,7 @@ resource "azurerm_public_ip" "web_srv_lb_ip" {
 resource "azurerm_public_ip" "nat_outbound_public_ip" {
   allocation_method   = "Static"
   location            = azurerm_resource_group.rg.location
-  name                = "nat-outbound-public-ip"
+  name                = "nat-outbound-public-ip-${terraform.workspace}"
   resource_group_name = azurerm_resource_group.rg.name
   sku = "Standard"
 }
@@ -80,7 +93,7 @@ resource "azurerm_public_ip" "nat_outbound_public_ip" {
 # Create NAT gateway
 resource "azurerm_nat_gateway" "public_sub_nat_gateway" {
   location            = azurerm_resource_group.rg.location
-  name                = "public-sub-nat-gateway"
+  name                = "public-sub-nat-gateway-${terraform.workspace}"
   resource_group_name = azurerm_resource_group.rg.name
 
 }
@@ -99,7 +112,7 @@ resource "azurerm_nat_gateway_public_ip_association" "gateway_public_ip_associat
 
 # Create Network Security Group and rules for public subnet
 resource "azurerm_network_security_group" "public_subnet_ngs" {
-  name                = "public-subnet-ngs"
+  name                = "public-subnet-ngs-${terraform.workspace}"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
 
@@ -154,7 +167,7 @@ resource "azurerm_network_security_group" "public_subnet_ngs" {
 
 # Create Network Security Group and rules for private subnet
 resource "azurerm_network_security_group" "private_subnet_ngs" {
-  name                = "private-subnet-ngs"
+  name                = "private-subnet-ngs-${terraform.workspace}"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
 
@@ -166,7 +179,7 @@ resource "azurerm_network_security_group" "private_subnet_ngs" {
     protocol                   = "Tcp"
     source_port_range          = "*"
     destination_port_range     = "5432"
-    source_address_prefix      = "192.168.1.0/24"
+    source_address_prefix      = var.public_subnet_prefix
     destination_address_prefix = "*"
   }
 
@@ -195,51 +208,9 @@ resource "azurerm_subnet_network_security_group_association" "private-subnet-nsg
   network_security_group_id = azurerm_network_security_group.private_subnet_ngs.id
 }
 
-# Create postgres DNS zone
-resource "azurerm_private_dns_zone" "postgres_dns_zone" {
-  name                = "example.postgres.database.azure.com"
-  resource_group_name = azurerm_resource_group.rg.name
-}
 
-# Link DNS zone to virtual network
-resource "azurerm_private_dns_zone_virtual_network_link" "postgres_zone_net_link" {
-  name                  = "postgres-zone-net-link"
-  private_dns_zone_name = azurerm_private_dns_zone.postgres_dns_zone.name
-  virtual_network_id    = azurerm_virtual_network.vnet.id
-  resource_group_name   = azurerm_resource_group.rg.name
-}
 
-# Create postgresql flexible server
-resource "azurerm_postgresql_flexible_server" "postgres_server" {
-  name                   = "postgresflex-server"
-  resource_group_name    = azurerm_resource_group.rg.name
-  location               = azurerm_resource_group.rg.location
-  version                = "12"
-  delegated_subnet_id    = azurerm_subnet.private_subnet.id
-  private_dns_zone_id    = azurerm_private_dns_zone.postgres_dns_zone.id
-  administrator_login    = var.postgres_username
-  administrator_password = var.postgres_password
-  zone                   = "1"
-  storage_mb = 32768
-  sku_name   = "B_Standard_B1ms"
-  depends_on = [azurerm_private_dns_zone_virtual_network_link.postgres_zone_net_link]
 
-}
-
-# Disable SSL auth on postgres server
-resource "azurerm_postgresql_flexible_server_configuration" "postgresql_server_conf" {
-  name      = "require_secure_transport"
-  server_id = azurerm_postgresql_flexible_server.postgres_server.id
-  value     = "OFF"
-}
-
-#Add postgres firewall rule
-resource "azurerm_postgresql_flexible_server_firewall_rule" "posgres_firewall_rule" {
-  name             = "postgress_access_rule"
-  server_id        = azurerm_postgresql_flexible_server.postgres_server.id
-  start_ip_address = "192.168.1.0"
-  end_ip_address   = "192.168.1.255"
-}
 
 
 

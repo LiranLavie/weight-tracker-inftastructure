@@ -1,0 +1,4 @@
+[webservers]
+%{ for name in webserver_names ~}
+${name}  ansible_host=${public_ip}
+%{ endfor ~}

@@ -4,12 +4,12 @@
 # Create network interface
 resource "azurerm_network_interface" "web_server_nic" {
   count = var.vm_count
-  name                = "web-server${count.index+1}-network-interface"
+  name                = "web-server${count.index+1}-network-interface-${terraform.workspace}"
   location            = var.resource_group_location
   resource_group_name = var.resource_group_name
 
   ip_configuration {
-    name                          = "web-server${count.index+1}-nic-conf"
+    name                          = "web-server${count.index+1}-nic-conf-${terraform.workspace}"
     subnet_id                     = var.subnet_id
     private_ip_address_allocation = "Dynamic"
   }
@@ -28,10 +28,11 @@ resource "azurerm_availability_set" "web_server_avset" {
 # Create virtual machines
 resource "azurerm_linux_virtual_machine" "web-server-vm" {
   count = var.vm_count
-  name                = "web-server${count.index+1}"
+  name                = "${var.server_name}-${count.index+1}-${terraform.workspace}"
   resource_group_name = var.resource_group_name
   location            = var.resource_group_location
-  size                = "Standard_B2s"
+  size                = "Standard_B1s"
+  #size                = "Standard_B2s"
   availability_set_id = azurerm_availability_set.web_server_avset.id
   admin_username      = var.username
   admin_password      = var.password
@@ -50,5 +51,6 @@ resource "azurerm_linux_virtual_machine" "web-server-vm" {
     version   = "latest"
   }
 }
+
 
 
