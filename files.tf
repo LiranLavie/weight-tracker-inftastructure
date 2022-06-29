@@ -26,12 +26,16 @@ resource "local_file" "ansible_host_vars" {
 
 # Create env file only containing postgres info to use with ansible
 resource "local_file" "ansible_env_template" {
-  content = templatefile("./templates/ansible-db-var-template.tmpl",
+  content = templatefile("./templates/ansible-webservers-vars-template.tmpl",
    {
-      db_address  = "${module.postgres_server.postgres_db_name}.postgres.database.azure.com"
-      db_user = var.postgres_username
-      db_pass = var.postgres_password
+      db_address     = "${module.postgres_server.postgres_db_name}.postgres.database.azure.com"
+      db_name        = var.db_name
+      db_user        = var.postgres_username
+      db_pass        = var.postgres_password
+      okta_url       = var.okta_url
+      okta_client_id = var.okta_client_id
+      okta_secret    = var.okta_secret
    })
 
-  filename = pathexpand("~/weight-tracker-ansible/inventory/db_vars/dbvars.yml")
+  filename = pathexpand("~/weight-tracker-ansible/inventory/webservers_vars/webservers_vars.yml")
 }

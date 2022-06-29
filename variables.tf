@@ -52,6 +52,22 @@ variable "postgres_firewall_rule_end_ip" {
   description = "The end ip address when allowing access to postgres through postgres firewall"
 }
 
+variable "db_name" {
+  description = "The name of postgres data base"
+}
+
+variable "okta_url" {
+  description = "The the url for okta auth"
+}
+
+variable "okta_client_id" {
+  description = "The client id for okta auth"
+}
+
+variable "okta_secret" {
+  description = "The okta secret"
+}
+
 ##Used when storing state remotely
 #variable "storage_account_key" {
 #  type        = string

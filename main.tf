@@ -70,6 +70,7 @@ module "postgres_server" {
   resource_group_location = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
   vnet_id = azurerm_virtual_network.vnet.id
+  depends_on = [azurerm_resource_group.rg,azurerm_subnet.private_subnet,azurerm_virtual_network.vnet]
 }
 
  # Create public ip for load balancer

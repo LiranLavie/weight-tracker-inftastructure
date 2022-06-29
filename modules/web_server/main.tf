@@ -31,8 +31,7 @@ resource "azurerm_linux_virtual_machine" "web-server-vm" {
   name                = "${var.server_name}-${count.index+1}-${terraform.workspace}"
   resource_group_name = var.resource_group_name
   location            = var.resource_group_location
-  size                = "Standard_B1s"
-  #size                = "Standard_B2s"
+  size                = "Standard_B2s"
   availability_set_id = azurerm_availability_set.web_server_avset.id
   admin_username      = var.username
   admin_password      = var.password
